@@ -32,7 +32,7 @@ app.add_middleware(
 # Load persisted vectorstore
 embeddings = OpenAIEmbeddings(model='text-embedding-3-small')
 vectorstore = Chroma(
-    persist_directory="./chroma_db",
+    persist_directory="/Users/chandlershortlidge/Desktop/Ironhack/fitness-form-coach/chroma_db",
     embedding_function=embeddings
 )
 
@@ -41,9 +41,9 @@ llm = ChatOpenAI(model="gpt-4o")
 output_parser = StrOutputParser()
 
 prompt = ChatPromptTemplate.from_messages([
-    ("system", """You are a knowledgeable fitness coach specializing in proper exercise form and technique.
-Use the following context from expert fitness videos to answer the user's question.
-Be specific and practical. If the context doesn't contain relevant information, say so.
+    ("system", """You are a helpful fitness coach. Only answer baesed on the provided context. If the context doesn't contain the answer, simply say, 
+    'Sorry, I don't have that information in my knowledge base yet. We'll have more info on that soon!' and stop.
+    Do not provide information from your general knowledge.
 
 Context:
 {context}"""),
