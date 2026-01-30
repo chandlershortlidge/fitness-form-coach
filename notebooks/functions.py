@@ -19,7 +19,7 @@ def get_transcript(video_id):
     joined = " ".join(extracted)
     return joined
 
-
+"""Manually add metadata to each transcript"""
 def write_metadata(video_id, difficulty, title, author, exercise_type, transcript):
     full_url = f"https://www.youtube.com/watch?v={video_id}"
     metadata = {"video_id": video_id, "title": title, "author": author, "difficulty": difficulty, "exercise_type": exercise_type, "transcript": transcript, "full_url": full_url}
@@ -61,34 +61,8 @@ def clean_and_save_transcript(filepath_in, filepath_out):
     cleaned_json_file = write_json(filepath_out, data)
     return cleaned_json_file
 
-# example: 
-# cleaned_bench_json = clean_and_save_transcript(filepath_in, filepath_out) 
-# raw_file = bench_json_raw = read_json("/Users/chandlershortlidge/Desktop/Ironhack/fitness-form-coach/data/transcripts/nippard_bench_dict.json")
-# metadata = bench_metadata = write_metadata(video_id="vcBig73ojpE", difficulty="intermediate", title="How To Get A Huge Bench Press with Perfect Technique", author="Jeff Nippard", exercise_type="bench_press", transcript=transcript)
 
 """RAG PIPELINE"""
-
-
-
-# def transcript_pipeline(json_file):
-#     """Pull the raw transcript from the JSON file"""
-#     json_doc = read_json(json_file)
-#     raw_transcript = json_doc["transcript"]
-
-#     """Build a new dictionary called "metadata" that extracts the keys from the json file"""
-#     metadata = {
-#     "video_id": json_doc["video_id"],
-#     "title": json_doc["title"],
-#     "author": json_doc["author"],
-#     "difficulty": json_doc["difficulty"],
-#     "exercise_type": json_doc["exercise_type"],
-# }
-
-#     """Make the raw transcript readable by a human for chunking using LLM"""
-#     llm = ChatOpenAI(model='gpt-4o')
-#     response = llm.invoke(f"Edit this document. Make the transcript clean and readable by a human. Remove all line break characters '/n'. Clean all typos. Return ONLY the transcript. NO comment from you.: {raw_transcript}")
-#     return response.content, metadata
-
 
 
 def split_text_add_metadata(cleaned_json_dict):
@@ -114,5 +88,3 @@ def split_text_add_metadata(cleaned_json_dict):
     return chunked_documents
 
 
-# jeff_ohp_chunked = split_text_add_metadata(cleaned_json_dict, metadata)
-# jeff_ohp_chunked = split_text_add_metadata(, metadata)
