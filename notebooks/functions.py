@@ -70,12 +70,33 @@ def clean_and_save_transcript(filepath_in, filepath_out):
 
 
 
-def transcript_pipeline(json_file):
-    """Pull the raw transcript from the JSON file"""
-    json_doc = read_json(json_file)
-    raw_transcript = json_doc["transcript"]
+# def transcript_pipeline(json_file):
+#     """Pull the raw transcript from the JSON file"""
+#     json_doc = read_json(json_file)
+#     raw_transcript = json_doc["transcript"]
 
-    """Build a new dictionary called "metadata" that extracts the keys from the json file"""
+#     """Build a new dictionary called "metadata" that extracts the keys from the json file"""
+#     metadata = {
+#     "video_id": json_doc["video_id"],
+#     "title": json_doc["title"],
+#     "author": json_doc["author"],
+#     "difficulty": json_doc["difficulty"],
+#     "exercise_type": json_doc["exercise_type"],
+# }
+
+#     """Make the raw transcript readable by a human for chunking using LLM"""
+#     llm = ChatOpenAI(model='gpt-4o')
+#     response = llm.invoke(f"Edit this document. Make the transcript clean and readable by a human. Remove all line break characters '/n'. Clean all typos. Return ONLY the transcript. NO comment from you.: {raw_transcript}")
+#     return response.content, metadata
+
+
+
+def split_text_add_metadata(cleaned_json_dict):
+    """Pull the raw transcript from the JSON file"""
+    json_doc = read_json(cleaned_json_dict)
+    cleaned_transcript = json_doc["clean_transcript"]
+
+    """Build a new dictionary called "metadata" that extracts the keys from the cleaned_json_dict"""
     metadata = {
     "video_id": json_doc["video_id"],
     "title": json_doc["title"],
@@ -83,21 +104,15 @@ def transcript_pipeline(json_file):
     "difficulty": json_doc["difficulty"],
     "exercise_type": json_doc["exercise_type"],
 }
-
-    """Make the raw transcript readable by a human for chunking using LLM"""
-    llm = ChatOpenAI(model='gpt-4o')
-    response = llm.invoke(f"Edit this document. Make the transcript clean and readable by a human. Remove all line break characters '/n'. Clean all typos. Return ONLY the transcript. NO comment from you.: {raw_transcript}")
-    return response.content, metadata
-
-
-
-def split_text_add_metadata(clean_transcript, metadata):
     """Split the text and chunk it"""
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    chunks = text_splitter.split_text(clean_transcript)
+    chunks = text_splitter.split_text(cleaned_transcript)
 
-    """Add metadata"""
-    documents = [Document(page_content=chunk, metadata=metadata) for chunk in chunks]
+    """Add metadata back onto the cleaned and chunked transcript"""
+    chunked_documents = [Document(page_content=chunk, metadata=metadata) for chunk in chunks]
 
-    return documents
+    return chunked_documents
 
+
+# jeff_ohp_chunked = split_text_add_metadata(cleaned_json_dict, metadata)
+# jeff_ohp_chunked = split_text_add_metadata(, metadata)
