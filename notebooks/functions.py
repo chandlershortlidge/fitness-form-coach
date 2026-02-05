@@ -103,6 +103,12 @@ def base_encoder(filepath_in):
         return base64_string
 
 
+import re
+def clean_classification_text(r):
+    create_string = r.content
+    response_cleaned = re.sub(r'[^a-zA-Z]', ' ', create_string)
+    return response_cleaned
+
 def split_text_add_metadata(cleaned_json_dict):
     """Pull the raw transcript from the JSON file"""
     json_doc = read_json(cleaned_json_dict)

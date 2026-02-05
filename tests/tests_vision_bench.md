@@ -6,10 +6,10 @@
 
 ### Model & prompt:
 
-{"role": "user", "content": 
- 
-[{"type": "text", "text":  """This is a frame from a bench press. Analyze the lifter's form and compare it to your context. Look CLOSELY for problems or issues. 
-  Help the user diagnose their incorrect form. Be specific about what you observe."""},
+GPT-5 
+
+"""This is a frame from a bench press. Analyze the lifter's form and compare it to your context. Look CLOSELY for problems or issues. 
+  Help the user diagnose their incorrect form. Be specific about what you observe."""
 
 ### Response
 
@@ -54,3 +54,39 @@ Safety notes
 - Film from a 45° front corner and a pure side view to confirm elbow angle, bar path, and forearm verticality.
 
 If you share a short video, I can give more precise feedback on touch point, bar speed, and whether you’re losing scapular position mid-rep.
+
+
+
+
+# Classification model test
+
+GPT-4o
+
+"""Your job is to analyze images of users working out for proper form, and list the key checkpoints of their to body evaluate. 
+  Give me ONLY the bodypart checkpoints. Do NOT include evaluation suggestions. Do NOT include an intro sentence. 
+  Output format should be exactly the example below.
+**Example**
+  Overhead press
+
+  1. Feet & base
+  2. Glutes & legs
+  3. Core & Ribcage
+  4. Shoulder position
+  5. Bar path
+  6. Head & Neck
+  7. Lockout position
+  8. Tempo and control
+   """
+
+   # Response 
+   **Bench Press**
+
+1. Feet & base
+2. Glutes & hips
+3. Back arch & position
+4. Shoulder position
+5. Elbow alignment
+6. Wrist position
+7. Bar path
+8. Head & neck
+9. Tempo and control
