@@ -9,6 +9,10 @@ from youtube_transcript_api import YouTubeTranscriptApi
 ytt_api = YouTubeTranscriptApi()
 
 import json
+import fitz #pymuPDF
+
+import base64
+
 
 
 # write a function that takes a video_id and returns the transcript text
@@ -19,17 +23,33 @@ def get_transcript(video_id):
     joined = " ".join(extracted)
     return joined
 
-"""Manually add metadata to each transcript"""
+"""Get PDF text"""
+def get_PDF_text(filepath_in):
+    doc = fitz.open(filepath_in)
+
+    pdf_text = ""
+    for page in doc:
+        pdf_text += page.get_text()
+
+    doc.close()
+    return pdf_text
+
+"""Add metadata to documents"""
+def write_documnent_metadata(title, author, exercise_type, difficulty, text):
+    doc_metadata = {"title": title, "author": author, "exercise_type": exercise_type,  "difficulty": difficulty, "transcript": text}
+    return doc_metadata
+
+"""Manually add metadata to each YOUTUBE transcript"""
 def write_metadata(video_id, difficulty, title, author, exercise_type, transcript):
     full_url = f"https://www.youtube.com/watch?v={video_id}"
     metadata = {"video_id": video_id, "title": title, "author": author, "difficulty": difficulty, "exercise_type": exercise_type, "transcript": transcript, "full_url": full_url}
     return metadata
 
 
-def write_json(filename, data):
-    """Filename = /Users/your/file/path/name_of_file.json
+def write_json(filepath_out, data):
+    """Filepath_out = /Users/your/file/path/name_of_file.json
     data = metadata"""
-    with open(filename, "w") as f:
+    with open(filepath_out, "w") as f:
         json.dump(data, f)
 
 
@@ -64,6 +84,24 @@ def clean_and_save_transcript(filepath_in, filepath_out):
 
 """RAG PIPELINE"""
 
+# create a base64 encoder so taht we can send images to the model API. 
+# the model API communicates via JSON. JSON is text. You can't put raw images bytes into JSON.
+# So you encode the bytes into a text string which can be decoded by the model.
+
+def base_encoder(filepath_in):
+    with open(filepath_in, 'rb') as image_file:
+        # read the binary data
+        binary_data = image_file.read()
+
+        # encode as base 64
+        base64_data = base64.b64encode(binary_data)
+
+        # convert to string 
+        base64_string = base64_data.decode('utf-8')
+
+        # print or use base64 string as needed
+        return base64_string
+
 
 def split_text_add_metadata(cleaned_json_dict):
     """Pull the raw transcript from the JSON file"""
@@ -73,6 +111,28 @@ def split_text_add_metadata(cleaned_json_dict):
     """Build a new dictionary called "metadata" that extracts the keys from the cleaned_json_dict"""
     metadata = {
     "video_id": json_doc["video_id"],
+    "title": json_doc["title"],
+    "author": json_doc["author"],
+    "difficulty": json_doc["difficulty"],
+    "exercise_type": json_doc["exercise_type"],
+}
+    """Split the text and chunk it"""
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    chunks = text_splitter.split_text(cleaned_transcript)
+
+    """Add metadata back onto the cleaned and chunked transcript"""
+    chunked_documents = [Document(page_content=chunk, metadata=metadata) for chunk in chunks]
+
+    return chunked_documents
+
+
+def split_text_add_TEXT_metadata(cleaned_json_dict):
+    """Pull the raw transcript from the JSON file"""
+    json_doc = read_json(cleaned_json_dict)
+    cleaned_transcript = json_doc["clean_transcript"]
+
+    """Build a new dictionary called "metadata" that extracts the keys from the cleaned_json_dict"""
+    metadata = {
     "title": json_doc["title"],
     "author": json_doc["author"],
     "difficulty": json_doc["difficulty"],
