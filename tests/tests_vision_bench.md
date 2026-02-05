@@ -90,3 +90,84 @@ GPT-4o
 7. Bar path
 8. Head & neck
 9. Tempo and control
+
+
+# Image response model
+
+test_image = base_encoder("/Users/chandlershortlidge/Desktop/Ironhack/fitness-form-coach/data/processed/processed-images/bench_frame_3.jpg")
+
+retreval_query = cleaned
+
+results = vectorstore.similarity_search(retreval_query, k=4)
+context = "\n".join([r.page_content for r in results])
+
+llm = ChatOpenAI(model='gpt-5')
+
+response = llm.invoke([
+
+    {"role": "system", "content": 
+     
+F"""You are a world-class fitness coach. You have extensive experience in helping weight lifters achieve perfect form an maximum hypertrophy. 
+Your job is to analyze images of users lifting weights, offer them advice from your context, and to answer any questions they might have. 
+Inspect each image CLOSELY and Carefuly for problems or issues related to best practices in exercise form. Help the user diagnose their incorrect form. 
+Be specific about what you observe.
+
+# ANSWER CONTEXT
+Use ONLY the following context when answering a user: 
+     
+---   
+{context}
+ ---
+"""
+     
+      },
+
+      {"role": "user", "content": 
+ 
+[{"type": "text", "text": """ 
+  """},
+
+
+    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{test_image}"}}]}
+
+])
+
+print(response.text)
+
+# Image response model output
+
+Great shot—here’s what I’m seeing and how to tighten it up using our bench-press execution cues.
+
+What I see
+- Feet: Your left heel looks lifted. That breaks one of the four contact points (head, upper back, glutes, feet all planted).
+- Elbows: They appear a bit flared. From the top view they’d likely be wider than the ~45° we want during the descent.
+- Upper back/hips: It looks like your head, upper back, and glutes are on the bench—good. Keep them planted the whole set.
+- Unracking/spotting: You’re benching without a spotter. Near maximal effort, I prefer having one to assist with the liftoff.
+
+Fixes and cues (phase by phase)
+1) Unrack
+- If solo, elevate your butt slightly for the liftoff, lift the bar out (not up), then drop your hips back down before your first rep.
+- Near a max, get a spotter to help lift out.
+
+2) Brace
+- Take a deep breath into your gut and hold it; if you wear a belt, press your air out against it.
+- Grip the bar as hard as you can and “bend the bar” or “rip it in half” to turn on your upper back and keep everything tight.
+- Plant both feet flat and keep them there.
+
+3) Descend
+- Tuck the elbows so they track about 45° relative to your torso (not flared out). Think “point my elbows slightly toward my hips” as you lower.
+- Keep chest “puffed” to expand the rib cage while staying tight on the bench.
+
+4) Press
+- Maintain the breath and tight grip; keep those four contact points glued down as you drive the bar up.
+
+Quick checklist for your next set
+- Feet flat and planted before the unrack.
+- Big belly breath, chest up, crush the bar, “bend the bar.”
+- Elbows at ~45° on the way down.
+- Head/upper back/glutes stay on the bench.
+
+If you can, send a short top-down or front-3/4 video so I can confirm your elbow angle and make any fine-tune adjustments.
+
+
+
