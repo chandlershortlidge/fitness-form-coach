@@ -33,15 +33,21 @@ The system retrieves relevant chunks from a curated knowledge base of fitness ex
 
 ```
 fitness-form-coach/
-├── notebooks/
-│   ├── functions.py          # Transcript fetching, cleaning, chunking utilities
-│   ├── youtube_transcripts.ipynb   # Data ingestion pipeline
-│   └── rag_pipeline.ipynb    # RAG system and query testing
+├── chroma_db/
 ├── data/
-│   ├── transcripts/          # Raw YouTube transcripts with metadata
-│   └── processed/            # Cleaned transcripts ready for embedding
-├── chroma_db/                # Persisted vector database
-└── README.md
+│   ├── processed/
+│   └── transcripts/
+├── notebooks/
+│   ├── functions.py
+│   ├── rag_pipeline.ipynb
+│   ├── text_transcripts.ipynb
+│   ├── youtube_transcripts.ipynb
+│   └── video_to_image_extraction.ipynb
+├── prompts/
+│   └── vision_model_prompts.md
+├── .gitignore
+├── README.md
+└── requirements.txt
 ```
 
 ## What's Next
