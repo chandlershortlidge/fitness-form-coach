@@ -1,87 +1,57 @@
 # Fitness Form Coach
 
-An AI-powered exercise form analysis tool that provides personalized feedback on lifting technique using computer vision and natural language processing.
+A RAG-powered Q&A system that answers exercise form questions using a curated knowledge base of expert fitness sources.
 
-## Project Overview
+## What It Does
 
-This application analyzes video of exercises (bench press, cable row, deadlift) and provides actionable form feedback. Users can ask follow-up questions via voice or text.
+Ask a question about exercise technique — like "what muscles should I engage when I bench press?" — and get an accurate, grounded response based on real expert guidance, not generic LLM knowledge.
 
-### Multimodal Pipeline
-- **Video → Frames → Vision Model → Text Feedback**
-- **Voice Input → Whisper STT → Text Query → LLM Response**
+The system retrieves relevant chunks from a curated knowledge base of fitness experts (Jeff Nippard, Mark Rippetoe, Layne Norton) and uses them as context for the LLM response. This means answers are traceable to real sources and less prone to hallucination.
 
-## Features
+## How It Works
 
-- Frame-by-frame exercise analysis using GPT-4o vision
-- Voice-based Q&A using OpenAI Whisper
-- Tiered feedback (beginner/intermediate/advanced terminology)
-- RAG-powered knowledge base from trusted fitness sources
-
-## Repository Structure
-
-```
-fitness-form-coach/
-├── src/                    # Source code
-│   ├── video_processing/   # Frame extraction, video handling
-│   ├── speech/             # Whisper integration
-│   ├── vision/             # Image analysis pipeline
-│   ├── agents/             # LangChain agents (post Week 34)
-│   └── knowledge_base/     # Vector DB setup, embeddings
-├── data/
-│   ├── transcripts/        # YouTube transcripts by channel
-│   ├── articles/           # Written resources
-│   └── processed/          # Cleaned, tagged, ready to embed
-├── notebooks/              # Experimentation and testing
-├── prompts/                # Prompt templates
-├── deployment/             # Deployment configurations
-├── tests/                  # Test suite
-├── requirements.txt
-└── README.md
-```
-
-## Data Sources
-
-### Knowledge Base (by difficulty level)
-
-| Level | Sources |
-|-------|---------|
-| Beginner | ACE Exercise Library, NASM, NHS Fitness |
-| Intermediate | Jeff Nippard, Renaissance Periodization, Stronger by Science |
-| Advanced | Starting Strength, Barbell Medicine, PubMed biomechanics |
-
-### Target Exercises
-- Bench Press
-- Cable Row
-- Deadlift
-
-## Setup
-
-```bash
-pip install -r requirements.txt
-```
-
-## Timeline
-
-- **Pre-project**: Data collection, Whisper testing, vision pipeline validation
-- **Days 1-2**: Architecture finalization, LangChain agent setup
-- **Days 3-6**: Integration, vector DB, conversational interface
-- **Days 7-8**: Testing, evaluation, documentation, deployment
-- **Day 9**: Presentation prep
-- **Day 10**: Presentation
+1. **Ingest**: YouTube transcripts are pulled, cleaned with GPT-4, and tagged with metadata (author, difficulty level, exercise type)
+2. **Chunk**: Transcripts are split into ~1000 character chunks with overlap to preserve context
+3. **Embed & Store**: Chunks are embedded using OpenAI's `text-embedding-3-small` and stored in ChromaDB
+4. **Retrieve**: User questions trigger a similarity search to find the most relevant chunks
+5. **Generate**: Retrieved context + user question are passed to GPT-4 with a system prompt that enforces grounding
 
 ## Tech Stack
 
-- **Vision**: GPT-4o / Claude vision
-- **Speech-to-Text**: OpenAI Whisper
-- **Orchestration**: LangChain
-- **Vector Database**: TBD (ChromaDB / Pinecone)
-- **Testing & Deployment**: LangSmith
-- **Framework**: Python
+- **Python**
+- **LangChain** — document loading, text splitting, prompt templates, chains
+- **ChromaDB** — vector storage and similarity search
+- **OpenAI API** — embeddings (`text-embedding-3-small`) and chat completions (`gpt-4o`)
 
-## Authors
+## Key Design Decisions
 
-Chandler
+- **Precision over recall**: For fitness advice, wrong information can cause injury. The system is designed to say "I don't have that information yet" rather than guess.
+- **Metadata tagging**: Each chunk carries author, difficulty level, and exercise type — enabling future filtering by user experience level.
+- **Grounded responses**: The system prompt explicitly constrains the LLM to only use retrieved context, reducing hallucination risk.
 
-## License
+## Project Structure
 
-MIT
+```
+fitness-form-coach/
+├── notebooks/
+│   ├── functions.py          # Transcript fetching, cleaning, chunking utilities
+│   ├── youtube_transcripts.ipynb   # Data ingestion pipeline
+│   └── rag_pipeline.ipynb    # RAG system and query testing
+├── data/
+│   ├── transcripts/          # Raw YouTube transcripts with metadata
+│   └── processed/            # Cleaned transcripts ready for embedding
+├── chroma_db/                # Persisted vector database
+└── README.md
+```
+
+## What's Next
+
+- [ ] Voice-to-text input using OpenAI Whisper
+- [ ] Image-to-text for exercise form analysis
+- [ ] Evaluation framework to measure retrieval accuracy and response quality
+- [ ] Streamlit frontend for demo
+
+## Author
+
+Chandler Shortlidge  
+[LinkedIn](https://linkedin.com/in/chandler-shortlidge) | [GitHub](https://github.com/chandler-shortlidge)
