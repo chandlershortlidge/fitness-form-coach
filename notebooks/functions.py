@@ -17,14 +17,29 @@ import base64
 
 # write a function that takes a video_id and returns the transcript text
 def get_transcript(video_id):
+    """Fetch and join the transcript for a YouTube video.
+
+    Args:
+        video_id: YouTube video identifier (the part after `v=` in the URL).
+
+    Returns:
+        A single string containing the full transcript text in timeline order.
+    """
     ytt_api = YouTubeTranscriptApi()
     transcript = ytt_api.fetch(video_id) 
     extracted = [script.text for script in transcript]
     joined = " ".join(extracted)
     return joined
 
-"""Get PDF text"""
 def get_PDF_text(filepath_in):
+    """Extract all text from a PDF file.
+
+    Args:
+        filepath_in: Path to the PDF file on disk.
+
+    Returns:
+        Concatenated text from every page in the document.
+    """
     doc = fitz.open(filepath_in)
 
     pdf_text = ""
@@ -34,26 +49,61 @@ def get_PDF_text(filepath_in):
     doc.close()
     return pdf_text
 
-"""Add metadata to documents"""
 def write_documnent_metadata(title, author, exercise_type, difficulty, text):
+    """Build a metadata dictionary for a transcript document.
+
+    Args:
+        title: Title of the content.
+        author: Creator or channel name.
+        exercise_type: Activity category (e.g., yoga, HIIT).
+        difficulty: Difficulty label.
+        text: Raw transcript text to attach.
+
+    Returns:
+        Dictionary containing the provided metadata fields.
+    """
     doc_metadata = {"title": title, "author": author, "exercise_type": exercise_type,  "difficulty": difficulty, "transcript": text}
     return doc_metadata
 
-"""Manually add metadata to each YOUTUBE transcript"""
 def write_metadata(video_id, difficulty, title, author, exercise_type, transcript):
+    """Create metadata for a YouTube transcript with a constructed URL.
+
+    Args:
+        video_id: YouTube video identifier.
+        difficulty: Difficulty label for the workout.
+        title: Video title.
+        author: Channel or creator name.
+        exercise_type: Activity category.
+        transcript: Raw transcript text.
+
+    Returns:
+        Dictionary containing metadata and the full YouTube URL.
+    """
     full_url = f"https://www.youtube.com/watch?v={video_id}"
     metadata = {"video_id": video_id, "title": title, "author": author, "difficulty": difficulty, "exercise_type": exercise_type, "transcript": transcript, "full_url": full_url}
     return metadata
 
 
 def write_json(filepath_out, data):
-    """Filepath_out = /Users/your/file/path/name_of_file.json
-    data = metadata"""
+    """Write a Python object to disk as JSON.
+
+    Args:
+        filepath_out: Destination file path, including `.json`.
+        data: JSON-serializable object to persist.
+    """
     with open(filepath_out, "w") as f:
         json.dump(data, f)
 
 
 def read_json(filename):
+    """Load JSON data from a file path.
+
+    Args:
+        filename: Path to a JSON file on disk.
+
+    Returns:
+        Parsed Python object (commonly a dict).
+    """
     with open(filename, "r") as f:
         data = json.load(f)
     return data 
@@ -61,13 +111,22 @@ def read_json(filename):
 
 # Read that dictionary (data) back from the JSON
 def clean_and_save_transcript(filepath_in, filepath_out):
-# pull the raw_transcript fro the raw_file json dictionary
+    """Clean a transcript with an LLM and save updated metadata.
+
+    Args:
+        filepath_in: Path to the JSON file containing a `transcript` field.
+        filepath_out: Destination path for the cleaned JSON metadata.
+
+    Returns:
+        None. Writes the cleaned metadata file to `filepath_out`.
+    """
+    # pull the raw transcript from the raw JSON dictionary
     # Step 1: Read the dictionary
     data = read_json(filepath_in)
     # Step 2: Get the raw transcript from it
     raw_transcript = data["transcript"]
     # Step 3: Clean it with GPT
-    llm = ChatOpenAI(model='gpt-4o')
+    llm = ChatOpenAI(model='gpt-5')
     # invoke LLM to clean the and edit the raw_transcript, producing cleaned_text
     response = llm.invoke(f"Edit this document {raw_transcript}. Make the transcript clean and readable by a human." 
                         "Remove all line break characters '/n'. Clean all typos. Return ONLY the transcript." 
@@ -89,6 +148,14 @@ def clean_and_save_transcript(filepath_in, filepath_out):
 # So you encode the bytes into a text string which can be decoded by the model.
 
 def base_encoder(filepath_in):
+    """Encode a local file's bytes as a Base64 string.
+
+    Args:
+        filepath_in: Path to the file to encode (commonly an image).
+
+    Returns:
+        Base64-encoded string representation of the file contents.
+    """
     with open(filepath_in, 'rb') as image_file:
         # read the binary data
         binary_data = image_file.read()
@@ -105,16 +172,31 @@ def base_encoder(filepath_in):
 
 import re
 def clean_classification_text(r):
+    """Strip non-letter characters from an LLM response.
+
+    Args:
+        r: LLM response object with a `.content` string attribute.
+
+    Returns:
+        String containing only alphabetical characters and spaces.
+    """
     create_string = r.content
     response_cleaned = re.sub(r'[^a-zA-Z]', ' ', create_string)
     return response_cleaned
 
 def split_text_add_metadata(cleaned_json_dict):
-    """Pull the raw transcript from the JSON file"""
+    """Chunk cleaned transcript text and attach source metadata.
+
+    Args:
+        cleaned_json_dict: Path to a JSON file containing `clean_transcript`
+            plus source metadata fields.
+
+    Returns:
+        List of LangChain `Document` objects with chunked text and metadata.
+    """
     json_doc = read_json(cleaned_json_dict)
     cleaned_transcript = json_doc["clean_transcript"]
 
-    """Build a new dictionary called "metadata" that extracts the keys from the cleaned_json_dict"""
     metadata = {
     "video_id": json_doc["video_id"],
     "title": json_doc["title"],
@@ -122,35 +204,36 @@ def split_text_add_metadata(cleaned_json_dict):
     "difficulty": json_doc["difficulty"],
     "exercise_type": json_doc["exercise_type"],
 }
-    """Split the text and chunk it"""
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     chunks = text_splitter.split_text(cleaned_transcript)
 
-    """Add metadata back onto the cleaned and chunked transcript"""
     chunked_documents = [Document(page_content=chunk, metadata=metadata) for chunk in chunks]
 
     return chunked_documents
 
 
 def split_text_add_TEXT_metadata(cleaned_json_dict):
-    """Pull the raw transcript from the JSON file"""
+    """Chunk cleaned transcript text and attach minimal metadata.
+
+    Args:
+        cleaned_json_dict: Path to a JSON file containing `clean_transcript`
+            plus text-level metadata fields.
+
+    Returns:
+        List of LangChain `Document` objects with chunked text and metadata.
+    """
     json_doc = read_json(cleaned_json_dict)
     cleaned_transcript = json_doc["clean_transcript"]
 
-    """Build a new dictionary called "metadata" that extracts the keys from the cleaned_json_dict"""
     metadata = {
     "title": json_doc["title"],
     "author": json_doc["author"],
     "difficulty": json_doc["difficulty"],
     "exercise_type": json_doc["exercise_type"],
 }
-    """Split the text and chunk it"""
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     chunks = text_splitter.split_text(cleaned_transcript)
 
-    """Add metadata back onto the cleaned and chunked transcript"""
     chunked_documents = [Document(page_content=chunk, metadata=metadata) for chunk in chunks]
 
     return chunked_documents
-
-
