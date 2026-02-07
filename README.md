@@ -54,4 +54,4 @@ fitness-form-coach/
 ## Author
 
 Chandler Shortlidge  
-[LinkedIn](https://linkedin.com/in/chandler-shortlidge) | [GitHub](https://github.com/chandler-shortlidge)
+[LinkedIn](https://linkedin.com/in/chandlershortlidge) | [GitHub](https://github.com/chandlershortlidge)
