@@ -1,50 +1,59 @@
 # Fitness Form Coach
 
-A RAG-powered Q&A system that answers exercise form questions using a curated knowledge base of expert fitness sources.
+A RAG-powered AI coaching system that analyzes workout videos and provides personalized exercise form feedback grounded in expert fitness knowledge.
 
 ## What It Does
 
-Ask a question about exercise technique — like "what muscles should I engage when I bench press?" — and get an accurate, grounded response based on real expert guidance, not generic LLM knowledge.
+Upload a video of your workout and get detailed, expert-backed form feedback. The system extracts frames from your video, classifies the exercise, retrieves relevant coaching knowledge, and uses multi-frame analysis to identify form issues across your full range of motion.
 
-The system retrieves relevant chunks from a curated knowledge base of fitness experts (Jeff Nippard, Mark Rippetoe, Layne Norton) and uses them as context for the LLM response. This means answers are traceable to real sources and less prone to hallucination.
+Responses are grounded in a curated knowledge base of fitness experts (Jeff Nippard, Mark Rippetoe, Layne Norton) — not generic LLM output. This means feedback is traceable to real sources and less prone to hallucination.
 
 ## How It Works
 
-1. **Ingest**: YouTube transcripts are pulled, cleaned with GPT-4, and tagged with metadata (author, difficulty level, exercise type)
-2. **Chunk**: Transcripts are split into ~1000 character chunks with overlap to preserve context
-3. **Embed & Store**: Chunks are embedded using OpenAI's `text-embedding-3-small` and stored in ChromaDB
-4. **Retrieve**: User questions trigger a similarity search to find the most relevant chunks
-5. **Generate**: Retrieved context + user question are passed to GPT-4 with a system prompt that enforces grounding
+1. **Extract**: Workout video frames are extracted at regular intervals using OpenCV
+2. **Classify**: A GPT-4o classifier identifies the exercise and key body checkpoints from a single frame
+3. **Retrieve**: Classification tags drive a similarity search against the vector database to find the most relevant expert coaching chunks
+4. **Analyze**: All extracted frames + retrieved context are passed to GPT-5, which performs multi-frame analysis to detect movement patterns and form issues across the full set of images
+5. **Ground**: A system prompt constrains the response model to only use retrieved expert context, reducing hallucination risk
+
+The system also supports text-based Q&A — ask a question about exercise technique and get an accurate, grounded response based on real expert guidance.
 
 ## Tech Stack
 
 - **Python**
+- **OpenAI API** — GPT-5 (multi-frame form analysis), GPT-4o (image classification), `text-embedding-3-small` (embeddings)
 - **LangChain** — document loading, text splitting, prompt templates, chains
 - **ChromaDB** — vector storage and similarity search
-- **OpenAI API** — embeddings (`text-embedding-3-small`) and chat completions (`gpt-4o`)
+- **OpenCV** — video frame extraction
 
 ## Key Design Decisions
 
+- **Multi-frame analysis**: Rather than analyzing a single snapshot, the system passes multiple frames to GPT-5 so it can detect patterns across the movement (e.g., bar path, elbow flare throughout the rep).
+- **Classifier-driven retrieval**: A separate classification model tags each image with exercise type and body checkpoints, which are then used as the similarity search query. This produces more relevant context than raw image descriptions.
 - **Precision over recall**: For fitness advice, wrong information can cause injury. The system is designed to say "I don't have that information yet" rather than guess.
-- **Metadata tagging**: Each chunk carries author, difficulty level, and exercise type — enabling future filtering by user experience level.
 - **Grounded responses**: The system prompt explicitly constrains the LLM to only use retrieved context, reducing hallucination risk.
+- **Metadata tagging**: Each chunk carries author, difficulty level, and exercise type — enabling future filtering by user experience level.
 
 ## Project Structure
 
 ```
 fitness-form-coach/
-├── chroma_db/
+├── chroma_db/                        # Persisted ChromaDB vector store
 ├── data/
+│   ├── articles/                     # Additional reference materials
 │   ├── processed/
-│   └── transcripts/
+│   │   ├── processed-images/         # Extracted video frames (JPG)
+│   │   └── cleaned_*.json            # Cleaned transcript chunks
+│   ├── raw_workout_videos/           # Source workout videos
+│   └── transcripts/                  # Raw transcript JSON files
 ├── notebooks/
-│   ├── functions.py
-│   ├── rag_pipeline.ipynb
-│   ├── text_transcripts.ipynb
-│   ├── youtube_transcripts.ipynb
-│   └── video_to_image_extraction.ipynb
+│   ├── functions.py                  # Core utility functions
+│   ├── rag_pipeline.ipynb            # RAG pipeline + multi-frame analysis
+│   ├── video_to_image_extraction.ipynb  # Video frame extraction
+│   ├── text_transcripts.ipynb        # Text transcript processing
+│   └── youtube_transcripts.ipynb     # YouTube transcript extraction
 ├── prompts/
-│   └── vision_model_prompts.md
+│   └── vision_model_prompts.md       # Vision model prompt development
 ├── .gitignore
 ├── README.md
 └── requirements.txt
@@ -52,12 +61,15 @@ fitness-form-coach/
 
 ## What's Next
 
-- [ ] Voice-to-text input using OpenAI Whisper
-- [ ] Image-to-text for exercise form analysis
+- [x] Video-to-image frame extraction
+- [x] Image classification for exercise identification
+- [x] Multi-frame movement analysis with GPT-5
+- [x] Classifier-driven RAG retrieval
 - [ ] Evaluation framework to measure retrieval accuracy and response quality
 - [ ] Streamlit frontend for demo
+- [ ] Support for more exercise types beyond bench press, squat, and OHP
 
 ## Author
 
-Chandler Shortlidge  
+Chandler Shortlidge
 [LinkedIn](https://linkedin.com/in/chandlershortlidge) | [GitHub](https://github.com/chandlershortlidge)
