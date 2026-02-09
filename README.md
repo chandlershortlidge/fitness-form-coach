@@ -16,7 +16,7 @@ Responses are grounded in a curated knowledge base of fitness experts (Jeff Nipp
 4. **Analyze**: All extracted frames + retrieved context are passed to GPT-5, which performs multi-frame analysis to detect movement patterns and form issues across the full set of images
 5. **Ground**: A system prompt constrains the response model to only use retrieved expert context, reducing hallucination risk
 
-The system also supports text-based Q&A — ask a question about exercise technique and get an accurate, grounded response based on real expert guidance.
+The system will soon support text-based Q&A — ask a question about exercise technique and get an accurate, grounded response based on real expert guidance.
 
 ## Tech Stack
 
@@ -61,13 +61,11 @@ fitness-form-coach/
 
 ## What's Next
 
-- [x] Video-to-image frame extraction
-- [x] Image classification for exercise identification
-- [x] Multi-frame movement analysis with GPT-5
-- [x] Classifier-driven RAG retrieval
-- [ ] Evaluation framework to measure retrieval accuracy and response quality
-- [ ] Streamlit frontend for demo
-- [ ] Support for more exercise types beyond bench press, squat, and OHP
+- Text-based Q&A for exercise technique questions
+- Voice-to-text input (Whisper API)
+- Evaluation framework
+- Streamlit frontend
+- More exercise types
 
 ## Author
 
