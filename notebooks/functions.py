@@ -12,8 +12,55 @@ import json
 import fitz #pymuPDF
 
 import base64
+import os 
+import cv2
+
+"""VIDEO PROCESSING PIPELINE"""
+
+def create_video_name(filepath_in):
+    basename = os.path.basename(filepath_in) # takes path and returns basename (video_name.mp4)
+    split_text = basename.split(".") # splits basename into list
+    video_name = split_text[0] # returns first item on that list
+    print("Video name:", video_name)
+    return video_name
+
+def save_video_frames(filepath_in, frames):
+    video_name = create_video_name(filepath_in)
+    for i, frame in enumerate(frames):
+        cv2.imwrite(f"/Users/chandlershortlidge/Desktop/Ironhack/fitness-form-coach/data/processed/processed-images/{video_name}_{i}.jpg", frame)
+    print(f"Saved to processed-images/{video_name}")
 
 
+# if your video is 30fps and you want a frame every 2 seconds, that's every 60 frames (2 × 30).
+# interval_seconds = max_seconds / extracted_frame_count
+# Interval_frames = interval_seconds * native_fps
+
+def extract_video_frames(frame_count, max_seconds, filepath_in):
+    frames = []
+    current_frame = 0
+    cap = cv2.VideoCapture(filepath_in) # opens the video like open('file.txt'). cap is now the video object 
+    native_fps = cap.get(cv2.CAP_PROP_FPS) # cap prop fps gets the native frame rate of the recording 
+    interval_seconds = max_seconds / frame_count 
+    # ex: 0.66 interval secionds = 10 max seconds / 15 desired frames
+    frame_interval = interval_seconds * native_fps 
+    # 20  = 0.66 * 30 native fps 
+    max_frames = int(native_fps * max_seconds)
+    # calculate the max frames in a video. eg: 30fps * 10 seconds = 300 max frames
+    while current_frame < max_frames:
+        success, frame = cap.read()
+        if not success:
+            break
+        if current_frame % frame_interval == 0:
+            frames.append(frame)
+        
+        current_frame += 1
+    cap.release() # closes the tile
+    
+    print(f"Frames processed: {frame_count}, ({max_seconds}s cap)")
+    
+    return frames
+    
+"""TEXT PROCESSING PIPELINE"""
 
 # write a function that takes a video_id and returns the transcript text
 def get_transcript(video_id):
