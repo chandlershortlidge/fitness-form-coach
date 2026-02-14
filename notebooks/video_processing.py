@@ -21,7 +21,17 @@ def create_video_name_and_save_to_files(filepath_in, frames):
 
 # def save_video_frames(filepath_in, frames):
 #     video_name = create_video_name(filepath_in)
-    
+
+def analyze_video(filepath_in, max_seconds, frame_count):
+    frames = extract_video_frames(filepath_in, max_seconds, frame_count)
+    video_name = create_video_name_and_save_to_files(filepath_in, frames)
+    encoded_frames = []
+    for i in range(frame_count):
+        filepath = f"/Users/chandlershortlidge/Desktop/Ironhack/fitness-form-coach/data/processed/processed-images/{video_name}_{i}.jpg"
+        encoded = base_encoder(filepath)
+        encoded_frames.append(encoded)
+
+    return encoded_frames
 
 
 # if your video is 30fps and you want a frame every 2 seconds, that's every 60 frames (2 × 30).
