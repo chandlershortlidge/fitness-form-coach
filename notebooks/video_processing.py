@@ -49,11 +49,12 @@ def extract_video_frames(filepath_in, max_seconds, frame_count):
     # 20  = 0.66 * 30 native fps 
     max_frames = int(native_fps * max_seconds)
     # calculate the max frames in a video. eg: 30fps * 10 seconds = 300 max frames
+    targets = [int(i * frame_interval) for i in range(frame_count)]
     while current_frame < max_frames:
         success, frame = cap.read()
         if not success:
             break
-        if current_frame % frame_interval == 0:
+        if current_frame in targets:
             frames.append(frame)
         
         current_frame += 1
