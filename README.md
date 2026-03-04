@@ -10,30 +10,66 @@ Responses are grounded in a curated knowledge base of fitness experts (Jeff Nipp
 
 ## How It Works
 
-### Video Analysis Pipeline
+The entire pipeline is orchestrated as a **LangGraph state machine** (`create_graph.ipynb`). A conditional router at the entry point inspects the input and directs it down one of three paths:
 
-1. **Extract** — `video_processing.py` extracts frames from workout videos at calculated intervals using OpenCV and base64-encodes them for API transmission
-2. **Classify** — A GPT-4o classifier identifies the exercise type and key body checkpoints from a representative frame
-3. **Retrieve** — Classification tags + the user's text query both drive similarity searches against ChromaDB; results are deduplicated to build a focused context window
-4. **Analyze** — All extracted frames + retrieved expert context are passed to GPT-5 for multi-frame form analysis across the full range of motion
-5. **Respond** — `chat_memory.py` maintains per-session conversation history so follow-up questions retain context
+```
+                    ┌─────────────────────┐
+                    │     User Input       │
+                    │  (query +/- video)   │
+                    └────────┬────────────┘
+                             │
+                      route_query()
+                     ┌───────┼────────────┐
+                     │       │            │
+                     ▼       ▼            ▼
+              ┌──────────┐ ┌──────────┐ ┌──────────┐
+              │  Video   │ │ Vector   │ │  Chat    │
+              │ Encoder  │ │ DB Node  │ │ Memory   │
+              └────┬─────┘ └────┬─────┘ └────┬─────┘
+                   ▼            │             │
+              ┌──────────┐     │             │
+              │ Video    │     │             │
+              │ Classify │     │             │
+              └────┬─────┘     │             │
+                   ▼            │             │
+              ┌──────────┐     │             │
+              │ Vector   │     │             │
+              │ DB Node  │     │             │
+              └────┬─────┘     │             │
+                   ▼            ▼             │
+              ┌──────────┐ ┌──────────┐      │
+              │ Response │ │ Response │      │
+              │Generator │ │Generator │      │
+              └────┬─────┘ └────┬─────┘      │
+                   │            │             │
+                   └────────────┴─────────────┘
+                                │
+                               END
+```
 
-### Text Q&A Pipeline
+### Video Path (video attached)
+1. **Video Encoder** — `video_processing.py` extracts frames from the workout video using OpenCV and base64-encodes them
+2. **Video Classification** — GPT-4o identifies the exercise type and key body checkpoints from a representative frame
+3. **Vector DB** — Classification keywords + user query both drive similarity searches against ChromaDB; results are deduplicated
+4. **Response Generator** — All frames + retrieved expert context are passed to GPT-5 for multi-frame form analysis with conversation history
 
-A query router (`router.ipynb`) classifies user input as either:
-- **memory only** — general conversation handled with chat history alone
-- **vectorstore & memory** — exercise/technique questions that trigger a similarity search for grounded expert context before responding
+### Text + Vectorstore Path (exercise/technique question, no video)
+1. **Vector DB** — User query drives a similarity search for relevant expert context
+2. **Response Generator** — Retrieved context + conversation history are passed to GPT-5
 
-Both pipelines share the same retrieval layer (`rag_pipeline.py`) and conversation memory.
+### Memory-Only Path (general conversation)
+1. **Chat Memory** — GPT-5 responds using conversation history alone (no retrieval)
+
+The path is selected by `route_query()`: if a video is attached it always takes the video path; otherwise a GPT-4o router classifies the text query as needing vectorstore retrieval or memory only.
 
 ## Tech Stack
 
 - **Python**
-- **OpenAI API** — GPT-5 (multi-frame form analysis + transcript cleaning), GPT-4o (image classification + query routing), `text-embedding-3-small` (embeddings)
-- **LangChain** — document loading, text splitting, prompt templates, chains, `RunnableWithMessageHistory` for conversation memory
+- **LangGraph** — state machine orchestration with conditional routing
+- **OpenAI API** — GPT-5 (form analysis + conversation), GPT-4o (image classification + query routing), `text-embedding-3-small` (embeddings)
+- **LangChain** — document loading, text splitting, prompt templates, `RunnableWithMessageHistory` for conversation memory
 - **ChromaDB** — persistent vector storage and similarity search
 - **OpenCV** — video frame extraction and processing
-- **LangGraph** — state machine orchestration (in progress, see below)
 
 ## Key Design Decisions
 
@@ -42,6 +78,7 @@ Both pipelines share the same retrieval layer (`rag_pipeline.py`) and conversati
 - **Precision over recall**: For fitness advice, wrong information can cause injury. The system is designed to say "I don't have that information yet" rather than guess.
 - **Grounded responses**: The system prompt explicitly constrains the LLM to only use retrieved context, reducing hallucination risk.
 - **Metadata tagging**: Each chunk carries author, difficulty level, and exercise type — enabling future filtering by user experience level.
+- **LangGraph state machine**: Explicit, inspectable control flow with typed state (`GraphState`) makes routing logic and data dependencies clear and extensible.
 
 ## Project Structure
 
@@ -56,16 +93,12 @@ fitness-form-coach/
 │   ├── raw_workout_videos/           # Source workout videos
 │   └── transcripts/                  # Raw transcript JSON files
 ├── notebooks/
-│   ├── rag_pipeline.py               # Core RAG: chunking, embedding, metadata, retrieval
 │   ├── video_processing.py           # Video frame extraction + base64 encoding
+│   ├── vectorstore_setup.py          # Transcript fetching, cleaning, chunking, metadata, and vectorstore helpers
 │   ├── chat_memory.py                # Per-session conversation history management
 │   ├── utils.py                      # JSON I/O helpers
-│   ├── router.py                     # Query router (placeholder, logic in router.ipynb)
-│   ├── rag_pipeline.ipynb            # Main pipeline: classify → retrieve → analyze → respond
-│   ├── router.ipynb                  # Text query routing (memory vs. vectorstore)
-│   ├── create_graph.ipynb            # LangGraph refactor (in progress)
-│   ├── video_pipeline.ipynb          # Video frame extraction workflow
-│   ├── chat_memory.ipynb             # Conversation history testing
+│   ├── create_graph.ipynb            # LangGraph agent: state, nodes, routing, and execution
+│   ├── vectorstore_setup.ipynb       # Vectorstore creation and document ingestion
 │   ├── youtube_transcripts.ipynb     # YouTube transcript fetching & cleaning
 │   └── text_transcripts.ipynb        # PDF text processing
 ├── prompts/
@@ -75,39 +108,8 @@ fitness-form-coach/
 └── requirements.txt
 ```
 
-## LangGraph Refactor (In Progress)
-
-The current pipeline orchestration lives in `rag_pipeline.ipynb` as a single function. A refactor to **LangGraph** is underway (`create_graph.ipynb`) to replace this with a stateful graph that makes the flow explicit and extensible:
-
-```
-┌─────────────────────┐
-│   User Input        │
-│  (query + video)    │
-└────────┬────────────┘
-         │
-         ▼
-┌─────────────────────┐
-│  Video Classification│  ← GPT-4o: exercise type + body checkpoints
-│       Node          │
-└────────┬────────────┘
-         │
-         ▼
-┌─────────────────────┐
-│  Vector DB Node     │  ← ChromaDB similarity search (query + classification)
-└────────┬────────────┘
-         │
-         ▼
-┌─────────────────────┐
-│  Response Generator │  ← GPT-5: multi-frame analysis with retrieved context
-│       Node          │
-└─────────────────────┘
-```
-
-**Status:** The `GraphState` schema and node stubs are defined. Node implementations are being migrated from the monolithic pipeline function. The query router will be integrated as a conditional edge to handle video vs. text-only inputs.
-
 ## What's Next
 
-- Complete LangGraph migration with conditional routing
 - Voice-to-text input (Whisper API)
 - Evaluation framework (retrieval quality + response grounding)
 - Streamlit frontend
