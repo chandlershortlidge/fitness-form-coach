@@ -19,7 +19,7 @@ load_dotenv(dotenv_path="/Users/chandlershortlidge/Desktop/Ironhack/fitness-form
 api_key = os.getenv("OPENAI_API_KEY")
 
 embeddings = OpenAIEmbeddings(model='text-embedding-3-small')
-vectorstore = Chroma(persist_directory="path/to/your/chroma_db", embedding_function=embeddings)
+vectorstore = Chroma(persist_directory="/Users/chandlershortlidge/Desktop/Ironhack/fitness-form-coach/chroma_db", embedding_function=embeddings)
 
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGSMITH_API_KEY")
