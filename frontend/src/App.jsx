@@ -1,12 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import ChatPanel from './components/ChatPanel';
 import InputBar from './components/InputBar';
+import Sidebar from './components/Sidebar';
 import { analyze } from './utils/api';
-import { getSessionId } from './utils/session';
-
-const sessionId = getSessionId();
+import { getSessionId, resetSessionId, getSessionHistory, saveSessionEntry } from './utils/session';
 
 export default function App() {
+  const [sessionId, setSessionId] = useState(getSessionId);
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingType, setLoadingType] = useState(null);
@@ -14,6 +14,8 @@ export default function App() {
   const [videoFile, setVideoFile] = useState(null);
   const videoUrlRef = useRef(null);
   const [videoUrl, setVideoUrl] = useState(null);
+  const [sessionHistory, setSessionHistory] = useState(getSessionHistory);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Create/revoke object URL when videoFile changes
   useEffect(() => {
@@ -40,6 +42,28 @@ export default function App() {
     setMessages((prev) => prev.map((m, i) => (i === index ? { ...m, ...updates } : m)));
   }, []);
 
+  function handleNewSession() {
+    const newId = resetSessionId();
+    setSessionId(newId);
+    setMessages([]);
+    setVideoFile(null);
+    setPreviewData(null);
+    setIsLoading(false);
+    setLoadingType(null);
+  }
+
+  function handleSelectSession(id) {
+    // Future: load session from backend. For now, just switch the active marker.
+    console.log('[sidebar] selected session:', id);
+  }
+
+  function saveToHistory(label) {
+    const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const entry = { id: sessionId, label, date };
+    saveSessionEntry(entry);
+    setSessionHistory(getSessionHistory());
+  }
+
   async function sendToBackend(payload, userMsgIndex, type = 'text') {
     setIsLoading(true);
     setLoadingType(type);
@@ -52,6 +76,9 @@ export default function App() {
             updateMessage(userMsgIndex, { text: `🎙️ ${transcription}` });
           }
           addMessage({ role: 'coach', text: response });
+          // Save a history entry from the first line of the response
+          const label = response.split('\n').find((l) => l.trim()) || 'Text analysis';
+          saveToHistory(label.slice(0, 50));
         },
       });
     } catch (err) {
@@ -92,6 +119,9 @@ export default function App() {
         },
         onResponse(response) {
           addMessage({ role: 'coach', text: response });
+          // Use the file name as the history label for video analyses
+          const label = file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ');
+          saveToHistory(label);
         },
       });
     } catch (err) {
@@ -110,40 +140,55 @@ export default function App() {
     sendToBackend({ userAudio: blob }, idx);
   }
 
+  // Build session list for sidebar
+  const sidebarSessions = sessionHistory.map((s) => ({
+    ...s,
+    active: s.id === sessionId,
+  }));
+
   return (
     <div className={`app${videoUrl ? ' has-video' : ''}`}>
-      <h1 className="app-title">Fitness Form Coach</h1>
-      <div className="app-layout">
-        <div className="chat-panel">
-          <ChatPanel messages={messages} isLoading={isLoading} loadingType={loadingType} previewData={previewData} />
-          <InputBar
-            onSendText={handleSendText}
-            onSendVideo={handleSendVideo}
-            onSendAudio={handleSendAudio}
-            disabled={isLoading}
-          />
-        </div>
-        {videoUrl && (
-          <div className="video-panel">
-            <div className="video-panel-header">
-              <span className="video-panel-title">Your Video</span>
-              <button
-                className="video-panel-close"
-                onClick={() => setVideoFile(null)}
-                aria-label="Close video panel"
-              >
-                ✕
-              </button>
-            </div>
-            <video
-              className="video-player"
-              src={videoUrl}
-              controls
-              playsInline
-              preload="metadata"
+      <Sidebar
+        sessions={sidebarSessions}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onNewSession={handleNewSession}
+        onSelectSession={handleSelectSession}
+      />
+      <div className="app-main">
+        <h1 className="app-title">Fitness Form Coach</h1>
+        <div className="app-layout">
+          <div className="chat-panel">
+            <ChatPanel messages={messages} isLoading={isLoading} loadingType={loadingType} previewData={previewData} />
+            <InputBar
+              onSendText={handleSendText}
+              onSendVideo={handleSendVideo}
+              onSendAudio={handleSendAudio}
+              disabled={isLoading}
             />
           </div>
-        )}
+          {videoUrl && (
+            <div className="video-panel">
+              <div className="video-panel-header">
+                <span className="video-panel-title">Your Video</span>
+                <button
+                  className="video-panel-close"
+                  onClick={() => setVideoFile(null)}
+                  aria-label="Close video panel"
+                >
+                  ✕
+                </button>
+              </div>
+              <video
+                className="video-player"
+                src={videoUrl}
+                controls
+                playsInline
+                preload="metadata"
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
