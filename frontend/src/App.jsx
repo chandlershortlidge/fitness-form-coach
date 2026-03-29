@@ -2,8 +2,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import ChatPanel from './components/ChatPanel';
 import InputBar from './components/InputBar';
 import Sidebar from './components/Sidebar';
-import { analyze } from './utils/api';
-import { getSessionId, resetSessionId, getSessionHistory, saveSessionEntry } from './utils/session';
+import { analyze, fetchSessions, fetchSession } from './utils/api';
+import { getSessionId, resetSessionId } from './utils/session';
 
 export default function App() {
   const [sessionId, setSessionId] = useState(getSessionId);
@@ -14,8 +14,17 @@ export default function App() {
   const [videoFile, setVideoFile] = useState(null);
   const videoUrlRef = useRef(null);
   const [videoUrl, setVideoUrl] = useState(null);
-  const [sessionHistory, setSessionHistory] = useState(getSessionHistory);
+  const [sessionHistory, setSessionHistory] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Load session list from backend on mount and after each analysis
+  function refreshSessions() {
+    fetchSessions().then(setSessionHistory).catch(() => {});
+  }
+
+  useEffect(() => {
+    refreshSessions();
+  }, []);
 
   // Create/revoke object URL when videoFile changes
   useEffect(() => {
@@ -52,16 +61,32 @@ export default function App() {
     setLoadingType(null);
   }
 
-  function handleSelectSession(id) {
-    // Future: load session from backend. For now, just switch the active marker.
-    console.log('[sidebar] selected session:', id);
-  }
+  async function handleSelectSession(id) {
+    try {
+      const session = await fetchSession(id);
+      if (session.error) return;
 
-  function saveToHistory(label) {
-    const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const entry = { id: sessionId, label, date };
-    saveSessionEntry(entry);
-    setSessionHistory(getSessionHistory());
+      // Switch to this session
+      sessionStorage.setItem('session_id', id);
+      setSessionId(id);
+      setVideoFile(null);
+      setPreviewData(null);
+      setIsLoading(false);
+      setLoadingType(null);
+
+      // Rebuild messages from saved session data
+      const restored = [];
+      if (session.user_query) {
+        const prefix = session.video_filename ? `📎 ${session.video_filename}\n` : '';
+        restored.push({ role: 'user', text: `${prefix}${session.user_query}` });
+      }
+      if (session.response) {
+        restored.push({ role: 'coach', text: session.response });
+      }
+      setMessages(restored);
+    } catch (err) {
+      console.error('[sidebar] failed to load session:', err);
+    }
   }
 
   async function sendToBackend(payload, userMsgIndex, type = 'text') {
@@ -76,9 +101,7 @@ export default function App() {
             updateMessage(userMsgIndex, { text: `🎙️ ${transcription}` });
           }
           addMessage({ role: 'coach', text: response });
-          // Save a history entry from the first line of the response
-          const label = response.split('\n').find((l) => l.trim()) || 'Text analysis';
-          saveToHistory(label.slice(0, 50));
+          refreshSessions();
         },
       });
     } catch (err) {
@@ -119,9 +142,7 @@ export default function App() {
         },
         onResponse(response) {
           addMessage({ role: 'coach', text: response });
-          // Use the file name as the history label for video analyses
-          const label = file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ');
-          saveToHistory(label);
+          refreshSessions();
         },
       });
     } catch (err) {
@@ -141,10 +162,17 @@ export default function App() {
   }
 
   // Build session list for sidebar
-  const sidebarSessions = sessionHistory.map((s) => ({
-    ...s,
-    active: s.id === sessionId,
-  }));
+  const sidebarSessions = sessionHistory.map((s) => {
+    const date = s.created_at
+      ? new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : '';
+    return {
+      id: s.session_id,
+      label: s.exercise_label || s.video_filename || 'Untitled session',
+      date,
+      active: s.session_id === sessionId,
+    };
+  });
 
   return (
     <div className={`app${videoUrl ? ' has-video' : ''}`}>

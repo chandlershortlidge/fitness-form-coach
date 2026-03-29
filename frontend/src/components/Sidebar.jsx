@@ -16,7 +16,7 @@ export default function Sidebar({ sessions, searchQuery, onSearchChange, onNewSe
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
-        New Analysis
+        New session
       </button>
 
       <div className="sidebar-search">
@@ -27,17 +27,17 @@ export default function Sidebar({ sessions, searchQuery, onSearchChange, onNewSe
         <input
           type="text"
           className="sidebar-search-input"
-          placeholder="Search analyses..."
+          placeholder="Search sessions..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
         />
       </div>
 
       <div className="sidebar-section">
-        <div className="sidebar-section-title">Recent Analyses</div>
+        <div className="sidebar-section-title">Recent Sessions</div>
         {filtered.length === 0 && (
           <div className="sidebar-empty">
-            {searchQuery ? 'No matches' : 'No analyses yet'}
+            {searchQuery ? 'No matches' : 'No sessions yet'}
           </div>
         )}
         <div className="sidebar-list">

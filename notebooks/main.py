@@ -7,12 +7,14 @@ if __package__:
         video_encoder_node, video_classification_node,
         vector_db_node, response_generator,
     )
+    from .sessions import create_session, get_session, update_session, list_sessions
 else:
     from graph import (
         app as graph_app, transcribe_audio,
         video_encoder_node, video_classification_node,
         vector_db_node, response_generator,
     )
+    from sessions import create_session, get_session, update_session, list_sessions
 import asyncio
 import json
 import tempfile
@@ -29,12 +31,27 @@ app.add_middleware(
 )
 
 
-# health check 
+# health check
 
 @app.get("/")
 def health_check():
     return {"status": "running"}
-# a GET endpoint that returns a simple message to confirm the server is running:
+
+
+# ── Session endpoints ──
+
+@app.get("/sessions")
+def api_list_sessions(limit: int = 20):
+    return list_sessions(limit=limit)
+
+
+@app.get("/sessions/{session_id}")
+def api_get_session(session_id: str):
+    session = get_session(session_id)
+    if not session:
+        return {"error": "not found"}, 404
+    return session
+
 
 @app.post("/analyze")
 async def analyze(session_id: str, user_query: str = Form(None), user_video: UploadFile = None, user_audio: UploadFile = None):
@@ -53,11 +70,21 @@ async def analyze(session_id: str, user_query: str = Form(None), user_video: Upl
     # 2. if video, save it
 
     video_path = None
+    video_filename = None
     if user_video:
-        suffix = os.path.splitext(user_video.filename)[1]
+        video_filename = user_video.filename
+        suffix = os.path.splitext(video_filename)[1]
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp.write(await user_video.read())
             video_path = tmp.name
+
+    # 3. create a persistent session record
+    create_session(
+        session_id,
+        user_query=user_query,
+        video_filename=video_filename,
+    )
+    update_session(session_id, status="analyzing")
 
     async def event_stream():
         nonlocal user_query
@@ -74,8 +101,13 @@ async def analyze(session_id: str, user_query: str = Form(None), user_video: Upl
                 {"classification_image": encoder_result["classification_image"]},
             )
 
+            classification_raw = classification_result.get('classification_raw', '')
+            # Derive a label from the first line of classification (exercise name)
+            exercise_label = classification_raw.split('\n')[0].strip().replace('*', '') if classification_raw else video_filename
+            update_session(session_id, classification_raw=classification_raw, exercise_label=exercise_label)
+
             # Send raw classification text to frontend for display
-            yield f"data: {json.dumps({'type': 'preview', 'classification_raw': classification_result.get('classification_raw', '')})}\n\n"
+            yield f"data: {json.dumps({'type': 'preview', 'classification_raw': classification_raw})}\n\n"
 
             # Step 3: Retrieval + response generation
             yield f"data: {json.dumps({'type': 'status', 'message': 'Putting your coaching notes together...'})}\n\n"
@@ -96,6 +128,7 @@ async def analyze(session_id: str, user_query: str = Form(None), user_video: Upl
             if video_path:
                 os.remove(video_path)
 
+            update_session(session_id, response=state['response'], status="completed")
             yield f"data: {json.dumps({'type': 'response', 'response': state['response'], 'transcription': transcription})}\n\n"
 
         else:
@@ -105,6 +138,8 @@ async def analyze(session_id: str, user_query: str = Form(None), user_video: Upl
                 {"session_id": session_id, "user_query": user_query, "user_video": ""},
             )
 
+            update_session(session_id, response=result['response'], status="completed",
+                           exercise_label=user_query[:50] if user_query else "Text analysis")
             yield f"data: {json.dumps({'type': 'response', 'response': result['response'], 'transcription': transcription})}\n\n"
 
     return StreamingResponse(
